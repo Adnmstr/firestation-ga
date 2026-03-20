@@ -9,6 +9,26 @@ import { crossoverStations } from "./crossover";
 import { mutateStations } from "./mutation";
 import { randomFloat } from "../utils/random";
 
+function generationStats(population: Individual[]): {
+  best: Individual;
+  averageFitness: number;
+} {
+  let best = population[0];
+  let totalFitness = 0;
+
+  for (const individual of population) {
+    totalFitness += individual.fitness;
+    if (individual.fitness > best.fitness) {
+      best = individual;
+    }
+  }
+
+  return {
+    best,
+    averageFitness: totalFitness / population.length,
+  };
+}
+
 export function runGeneticAlgorithm(
   heatmap: Heatmap,
   config: GAConfig
@@ -28,6 +48,7 @@ export function runGeneticAlgorithm(
         cost: 0,
       },
       bestFitnessHistory: [],
+      averageFitnessHistory: [],
       bestCostHistory: [],
     };
   }
@@ -37,28 +58,35 @@ export function runGeneticAlgorithm(
     stationCount,
   });
 
+  if (population.length === 0) {
+    return {
+      bestIndividual: {
+        stations: [],
+        fitness: 0,
+        cost: 0,
+      },
+      bestFitnessHistory: [],
+      averageFitnessHistory: [],
+      bestCostHistory: [],
+    };
+  }
+
   const bestFitnessHistory: number[] = [];
+  const averageFitnessHistory: number[] = [];
   const bestCostHistory: number[] = [];
 
-  const clampTournamentSize = Math.max(
-    1,
-    Math.min(config.tournamentSize, population.length || 1)
-  );
+  const tournamentSize = Math.max(1, Math.min(config.tournamentSize, population.length));
   const eliteCount = Math.max(1, Math.min(1, config.populationSize));
 
-  const recordBest = () => {
-    const best = population.reduce(
-      (acc, current) => (current.fitness > acc.fitness ? current : acc),
-      population[0]
-    );
-
+  const recordGeneration = () => {
+    const { best, averageFitness } = generationStats(population);
     bestFitnessHistory.push(best.fitness);
+    averageFitnessHistory.push(averageFitness);
     bestCostHistory.push(best.cost);
-
     return best;
   };
 
-  let bestOverall = recordBest();
+  let bestOverall = recordGeneration();
 
   for (let generation = 0; generation < config.generations; generation++) {
     const nextPopulation: Individual[] = [];
@@ -68,8 +96,8 @@ export function runGeneticAlgorithm(
     nextPopulation.push(...elites);
 
     while (nextPopulation.length < config.populationSize) {
-      const parentA = tournamentSelect(population, clampTournamentSize);
-      const parentB = tournamentSelect(population, clampTournamentSize);
+      const parentA = tournamentSelect(population, tournamentSize);
+      const parentB = tournamentSelect(population, tournamentSize);
       let childStations = parentA.stations;
 
       if (randomFloat() < config.crossoverRate) {
@@ -81,19 +109,22 @@ export function runGeneticAlgorithm(
         );
       }
 
-      const mutated = mutateStations(childStations, heatmap, config.mutationRate);
-      const child = evaluateIndividual(mutated, heatmap);
+      const mutatedStations = mutateStations(childStations, heatmap, config.mutationRate);
+      const child = evaluateIndividual(mutatedStations, heatmap);
       nextPopulation.push(child);
     }
 
     population = nextPopulation.slice(0, config.populationSize);
-    bestOverall = recordBest();
+    const generationBest = recordGeneration();
+
+    if (generationBest.fitness > bestOverall.fitness) {
+      bestOverall = generationBest;
+    }
   }
 
-  const finalBest = population.reduce(
-    (acc, current) => (current.fitness > acc.fitness ? current : acc),
-    population[0]
-  );
+  const finalBest = population.reduce((acc, current) => {
+    return current.fitness > acc.fitness ? current : acc;
+  }, population[0]);
 
   if (finalBest.fitness > bestOverall.fitness) {
     bestOverall = finalBest;
@@ -102,6 +133,7 @@ export function runGeneticAlgorithm(
   return {
     bestIndividual: bestOverall,
     bestFitnessHistory,
+    averageFitnessHistory,
     bestCostHistory,
   };
 }

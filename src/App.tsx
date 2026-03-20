@@ -4,6 +4,7 @@ import GAControlPanel from "./components/GAControlPanel";
 import HeatmapGeneratorPanel from "./components/HeatmapGeneratorPanel";
 import HeatmapGrid from "./components/HeatmapGrid";
 import ResultsPanel from "./components/ResultsPanel";
+import FitnessGraph from "./components/FitnessGraph";
 import { runGeneticAlgorithm } from "./ga/geneticAlgorithm";
 import { GAConfig, GARunResult, Heatmap } from "./ga/types";
 import { generateHeatmap } from "./heatmap/generator";
@@ -82,6 +83,10 @@ function App() {
               stations={result?.bestIndividual.stations ?? []}
             />
           </div>
+          <FitnessGraph
+            bestFitnessHistory={result?.bestFitnessHistory ?? []}
+            averageFitnessHistory={result?.averageFitnessHistory ?? []}
+          />
         </div>
       </main>
     </div>

@@ -23,5 +23,6 @@ export type GAConfig = {
 export type GARunResult = {
   bestIndividual: Individual;
   bestFitnessHistory: number[];
+  averageFitnessHistory: number[];
   bestCostHistory: number[];
 };
