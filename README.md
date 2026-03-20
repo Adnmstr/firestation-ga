@@ -1,46 +1,143 @@
-# Getting Started with Create React App
+# Fire Station GA Simulation
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a React + TypeScript web app that simulates placing fire stations on a generated square population heatmap using a genetic algorithm.
 
-## Available Scripts
+Users can:
 
-In the project directory, you can run:
+- Generate a square city heatmap from a set of configurable population centers.
+- Configure GA settings (population size, generations, mutation/crossover rates, tournament size, station count).
+- Run the genetic algorithm on the **currently generated heatmap**.
+- Visualize the resulting station placement on the heatmap.
+- Track optimization progress with a fitness chart (best vs average fitness by generation).
 
-### `npm start`
+## Demo Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- Dynamic square heatmap generation
+- GA-driven optimization for station placement
+- Nearest-station weighted Euclidean distance as fitness objective
+- UI separation between heatmap-generation controls and GA controls
+- Real-time results panel showing best individual stations
+- Fitness visualization under the heatmap with legend
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Tech Stack
 
-### `npm test`
+- React 19
+- TypeScript 4.9
+- Create React App
+- CRA tooling (`react-scripts`)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Project Structure
 
-### `npm run build`
+```text
+src/
+  components/
+    GAControlPanel.tsx
+    HeatmapGeneratorPanel.tsx
+    HeatmapGrid.tsx
+    FitnessGraph.tsx
+    ResultsPanel.tsx
+    StationOverlay.tsx
+  ga/
+    crossover.ts
+    fitness.ts
+    geneticAlgorithm.ts
+    initialization.ts
+    grid.ts
+    mutation.ts
+    selection.ts
+    types.ts
+  heatmap/
+    generator.ts
+    types.ts
+  utils/
+    random.ts
+  App.tsx
+  App.css
+  index.tsx
+  index.css
+  react-app-env.d.ts
+  data/
+    sampleHeatmaps.ts
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## How it works
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 1) Heatmap generation
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+`src/heatmap/generator.ts` builds a `number[][]` heatmap of shape `gridSize x gridSize`.
 
-### `npm run eject`
+- Random population centers are placed on the grid.
+- Each cell receives population contribution from all centers using Gaussian-like decay.
+- Configurable noise is added.
+- Final values are clamped to non-negative integers.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### 2) GA encoding
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+A chromosome/individual is a list of unique station coordinates:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+- `Coordinate`: `{ x: number; y: number }`
+- `Individual`: `{ stations, fitness, cost }`
+- `Individual.stations` stores station locations on the heatmap.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Important constraints enforced in logic:
 
-## Learn More
+- Station coordinates are always within map bounds.
+- No duplicates inside one individual.
+- Station count is clamped to valid grid capacity (`gridSize * gridSize`).
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 3) Fitness objective
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+`src/ga/fitness.ts` evaluates stations using:
+
+- Population-weighted nearest-station Euclidean distance.
+- Lower weighted cost is better.
+- Fitness is transformed as `1 / (1 + cost)`.
+
+### 4) GA flow
+
+`src/ga/geneticAlgorithm.ts`:
+
+- Initializes a valid random population.
+- Runs generation loops:
+  - Tournament selection
+  - Crossover
+  - Mutation
+  - Evaluation
+- Tracks:
+  - Best fitness history
+  - Average fitness history
+  - Best cost history
+- Returns the best individual from the run.
+
+## Scripts
+
+From the project root:
+
+- `npm install`
+- `npm start` — run dev server
+- `npm run build` — production build
+- `npm test` — run tests (if/when added)
+
+## Expected flow in the UI
+
+1. Configure and generate a heatmap in **Heatmap Generator** panel.
+2. Configure GA parameters in **Genetic Algorithm** panel.
+3. Click **Run GA**.
+4. View:
+   - Heatmap with best station placement
+   - Station list in results panel
+   - Fitness progress graph (best and average lines)
+
+## Notes
+
+- `src/data/sampleHeatmaps.ts` exists as a module placeholder for future sample presets.
+- `src/components/StationOverlay.tsx` is currently a stub for future map overlays.
+- Fitness/GA modules are intentionally kept separate from UI components for readability and maintainability.
+
+## Extensibility ideas
+
+- Add a chart tooltip and selectable metric overlays.
+- Add stop/continue GA controls with animation of generations.
+- Add export/import of generated heatmaps and run configurations.
+- Add more crossover operators and mutation strategies.
+- Add distance variants (Manhattan, travel-time approximation).
